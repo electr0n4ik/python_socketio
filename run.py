@@ -1,14 +1,9 @@
 
 import eventlet
 
-from src.socketio_manager import SocketioManager
+from src.socketio_manager import SocketIOManager
 
 
-if __name__ == "__main__":
-
-    socketio = SocketioManager
-    app = socketio.app
-
-    eventlet.wsgi.server(
-        eventlet.listen(('', 5000)), app
-    )
+if __name__ == '__main__':
+    server = SocketIOManager()
+    server.run('localhost', 5000)
