@@ -9,13 +9,26 @@ class SocketIOManager:
     """Класс отвечает за управление розеткой"""
     def __init__(self):
         self.sio = socketio.Server()
-        self.app = socketio.WSGIApp(self.sio)
+        self.app = socketio.WSGIApp(self.sio, static_files={
+            "/": "./public/"
+        })
+
+        self.clients_count = 0
+        self.a_count = 0
+        self.b_count = 0
+
         self.rooms = {}
         self.users = {}
 
         self.register_events()
 
     def register_events(self):
+
+        @self.sio.on('*')
+        def catch_all(event, sid, data):
+            """Для не обработанных событий событий"""
+            print(self.sio.emit())
+
         @self.sio.event
         def connect(sid, environ):
             self.users[sid] = User(sid, sid)
@@ -30,22 +43,23 @@ class SocketIOManager:
                     self.leave_room(sid)
                 del self.users[sid]
 
-        @self.sio.on("message")
-        def in_com(sid, data):
-            """{
-              "event": "message",
-              "data": "Hello, server!"
-            }"""
-            print(data)
+        # @self.sio.on("message")
+        # def in_com(sid, data):
+        #     """{
+        #       "event": "message",
+        #       "data": "Hello, server!"
+        #     }"""
+        #     print(data)
 
         @self.sio.on("create_room")
         def create_room(sid):
+            print("Ok")
             user = self.users.get(sid)
             if user:
                 room = Room(user)
                 self.rooms[room.id] = room
                 user.room = room
-                self.sio.emit("room_created", {"room_id": room.id, "room_name": room.name}, to=sid)
+                self.sio.emit("create_room", {"room_id": room.id, "room_name": room.name}, to=sid)
 
         @self.sio.on("join_room")
         def join_room(sid, room_id):
@@ -54,7 +68,7 @@ class SocketIOManager:
                 room = self.rooms.get(room_id)
                 if room:
                     user.room = room
-                    room.members.append(user)
+                    room.members["user"] = user
                     self.sio.emit("user_joined", {"room_id": room.id, "user_id": user.id}, room=room.id)
 
         @self.sio.on("leave_room")
