@@ -1,5 +1,3 @@
-# https://github.com/miguelgrinberg/quick-socketio-tutorial/blob/part7/app.py
-
 import socketio
 import eventlet
 
@@ -9,15 +7,14 @@ from src.user import User
 
 class SocketIOManager:
     """Класс отвечает за управление розеткой"""
+
     def __init__(self):
         self.sio = socketio.Server()
         self.app = socketio.WSGIApp(self.sio, static_files={
             "/": "./public/"
         })
 
-        self.clients_count = 0
-        self.a_count = 0
-        self.b_count = 0
+        self.clients_count = 1
 
         self.rooms = {}
         self.users = {}
@@ -26,15 +23,14 @@ class SocketIOManager:
 
     def register_events(self):
 
-        @self.sio.on('*')
-        def catch_all(event, sid, data):
-            """Для не обработанных событий событий"""
-            print(self.sio.emit())
-
         @self.sio.event
         def connect(sid, environ):
-            self.users[sid] = User(sid, sid)
-            self.sio.emit("user_data", self.get_user_data(sid), to=sid)
+
+            user = User(sid)
+            self.users[sid] = user
+            self.clients_count += 1
+
+            self.sio.emit("message", user.id, to=sid)
 
         @self.sio.event
         def disconnect(sid):
@@ -45,33 +41,30 @@ class SocketIOManager:
                     self.leave_room(sid)
                 del self.users[sid]
 
-        # @self.sio.on("message")
-        # def in_com(sid, data):
-        #     """{
-        #       "event": "message",
-        #       "data": "Hello, server!"
-        #     }"""
-        #     print(data)
+                self.clients_count -= 1
 
         @self.sio.on("create_room")
-        def create_room(sid):
+        def create_room(sid, environ):
             print("Ok")
             user = self.users.get(sid)
             if user:
-                room = Room(user)
+                room = Room(user)  # host
                 self.rooms[room.id] = room
                 user.room = room
                 self.sio.emit("create_room", {"room_id": room.id, "room_name": room.name}, to=sid)
+                print(sid, user.id, room.id, room.name)
 
         @self.sio.on("join_room")
-        def join_room(sid, room_id):
-            user = self.users.get(sid)
-            if user:
-                room = self.rooms.get(room_id)
-                if room:
-                    user.room = room
-                    room.members["user"] = user
-                    self.sio.emit("user_joined", {"room_id": room.id, "user_id": user.id}, room=room.id)
+        def join_room(sid, data):
+            room_id = data.get("room_id")
+            print("Ok_join", sid, room_id)
+            # user = self.users.get(sid)
+            # if user:
+            #     room = self.rooms.get(room_id)
+            #     if room:
+            #         user.room = room
+            #         room.members["user"] = user
+            #         self.sio.emit("user_joined", {"room_id": room.id, "user_id": user.id}, room=room.id)
 
         @self.sio.on("leave_room")
         def leave_room(sid):
@@ -103,7 +96,6 @@ class SocketIOManager:
 
     def run(self, host, port):
         eventlet.wsgi.server(eventlet.listen((host, port)), self.app)
-
 
 # socket_data = {"online": 0, "message": 0}
 #
