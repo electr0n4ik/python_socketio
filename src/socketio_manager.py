@@ -15,7 +15,6 @@ class SocketIOManager:
         })
 
         self.clients_count = 1
-
         self.rooms = {}
         self.users = {}
 
@@ -31,6 +30,7 @@ class SocketIOManager:
             self.clients_count += 1
 
             self.sio.emit("message", user.id, to=sid)
+            print(user.id, user.room, user.name, "connected")
 
         @self.sio.event
         def disconnect(sid):
@@ -45,14 +45,14 @@ class SocketIOManager:
 
         @self.sio.on("create_room")
         def create_room(sid, environ):
-            print("Ok")
             user = self.users.get(sid)
-            if user:
-                room = Room(user)  # host
-                self.rooms[room.id] = room
-                user.room = room
-                self.sio.emit("create_room", {"room_id": room.id, "room_name": room.name}, to=sid)
-                print(sid, user.id, room.id, room.name)
+            room = Room()  # создаем новую комнату
+            room.host = user.session_id  # host
+            self.rooms[room.id] = room
+            user.room = room
+            room.increase_id_counter()
+            self.sio.emit("create_room", {"room_id": room.id, "room_name": room.name}, to=sid)
+            print(sid, user.id, room.id, room.name)
 
         @self.sio.on("join_room")
         def join_room(sid, data):
