@@ -29,6 +29,7 @@ class SocketIOManager:
             self.users_dict[sid] = user
 
             self.sio.emit("connect", user.id, to=sid)
+            return "OK"
 
         @self.sio.event
         def disconnect(sid):
@@ -129,23 +130,17 @@ class SocketIOManager:
                             # self.sio.emit("message", {"message": message_host}, room=self.room_message.host)
                             self.sio.emit("message", {"message": message_host}, to=user)
             else:
-                self.sio.emit("message", {"message": message_host}, to=user)
+                self.sio.emit("message", "Только host может рассылать сообщения.", to=sid)
 
-    # @self.sio.on("add_client_to_room")
-    # def add_client_to_room(sid, data, environ):
-    #     room = self.rooms_dict.get(data.get("room_id"))
-    #
-    #     user_id = data.get("user_id")
-    #
-    #     for key in self.rooms_dict.keys():
-    #         if data.get("room_id") == str(key):
-    #
-    #             self.join_room(sid, data)
-    #
-    #             self.sio.emit("user_connect_room", {"room_id": room.id,
-    #                                                 "room_name": room.name,
-    #                                                 "host": room.host,
-    #                                                 "members": room.members}, room=room.id)
+        @self.sio.event(namespace="/api/rooms")
+        def get_list_rooms(sid, data):
+            # self.sio.connect("https://localhost:8000/api/rooms")
+
+            for room in self.rooms_dict.values():
+                self.sio.emit("message", {"name_room": room.name,
+                                          "host_room": room.host}, namespace="/api/rooms")
+
+                self.sio.emit("message", {"count_members": len(room.members)}, namespace="/api/rooms")
 
     def run(self, host, port):
         eventlet.wsgi.server(eventlet.listen((host, port)), self.app)
