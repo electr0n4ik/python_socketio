@@ -68,9 +68,8 @@ class SocketIOManager:
 
                     room_join = self.rooms_dict.get(key)
                     user_join.room = room_join
-
                     room_join.members[user_join.session_id] = user_join
-                    print("joined")
+
                     self.sio.emit("join_room",
                                   {"room_id": room_join.host, "user_id": sid},
                                   room=room_join.host)
@@ -82,13 +81,22 @@ class SocketIOManager:
                     self.sio.emit("message", data={"content": "Не указан ID комнаты или комната не существует!"})
 
         @self.sio.on("leave_room")
-        def leave_room(sid):
-            user = self.users_dict.get(sid)
-            if user and user.room:
-                room = user.room
-                user.room = None
-                room.members.remove(user)
-                self.sio.emit("user_left", {"room_id": room.id, "user_id": user.id}, room=room.id)
+        def leave_room(sid, environ):
+            user_leave = self.users_dict.get(sid)
+
+            if user_leave and user_leave.room:
+                room = user_leave.room
+
+                if user_leave.room == room:
+                    self.sio.emit("message", "host не может покинуть комнату", room=room)
+                    return None
+
+                user_leave.room = None
+                room.members.remove(user_leave)
+                self.sio.emit("user_left", {"room_id": room.id, "user_id": user_leave.id}, room=room.id)
+            else:
+
+                self.sio.emit("message", "Вы не в комнате!", to=sid)
 
         @self.sio.event(namespace='/chat')
         def my_custom_event():
