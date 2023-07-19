@@ -34,14 +34,12 @@ class SocketIOManager:
         @self.sio.event
         def disconnect(sid):
             user = self.users_dict.get(sid)
-            print(1)
             if user:
                 user.is_online = False
-                print(2)
                 if user.room:
-                    # self.sio.leave_room(sid)
-                    print(3)
-
+                    self.sio.leave_room(sid)
+                    room = user.room
+                    del room.members[user.session_id]
             del self.users_dict[sid]
 
             self.sio.emit("disconnect", user.id)
