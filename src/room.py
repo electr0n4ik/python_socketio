@@ -17,9 +17,6 @@ class Room:
         self.id_counter += 1
         self.name = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
 
-    def add_member(self, member):
-        self.members[member.id] = member
-
     def add_host(self, host):
         self.host[self.name] = host
 

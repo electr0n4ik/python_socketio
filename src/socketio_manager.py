@@ -31,7 +31,6 @@ class SocketIOManager:
             self.clients_count += 1
 
             self.sio.emit("connect", user.id, to=sid)
-            print(user.id, user.room, user.name, "connected")
 
         @self.sio.event
         def disconnect(sid):
@@ -57,29 +56,24 @@ class SocketIOManager:
             self.room.increase_id_counter()  # счетчик класса комнат увеличиваем на 1 после создания очередной комнаты
 
             self.sio.emit("create_room", {"room_id": self.room.id, "room_name": self.room.name}, to=sid)
-            print("Комната создана", "Имя комнаты - ", self.room.name)
-            print(self.rooms_dict["room"])
 
         @self.sio.on("join_room")
         def join_room(sid, data):
-		  # list_keys = []
-		  # for key_ in self.rooms_dict.keys():
-            #     list_keys.append(key_)
 
-            if data.get("room_id") in self.rooms_dict.keys().get():
-                get_room_id = data.get("room_id")
-                user = self.users_dict.get(sid)
-                if user:
-                    room = self.rooms_dict.get(get_room_id)
-                    if room:
-                        user.room = room
-                        room.add_member(user)
-                        self.sio.emit("message", {"room_id": room.id, "user_id": user.id}, room=room.id)
-                        print(room.id, user.id, room.name, user.name, "joined")
+            for key in self.rooms_dict.keys():
 
-            else:
-                self.sio.emit("message", data={"content": "Не указан ID комната или комнаты не существует!"})
-                print("Error")
+                if data.get("room_id") == str(key):
+
+                    user = self.users_dict.get(sid)
+
+                    room = self.rooms_dict.get(key)
+                    user.room = room
+
+                    # room.members[user.session_id] = user  # TODO исправить
+                    self.sio.emit("message", {"room_id": room, "user_id": user.id}, room=room)
+
+                else:
+                    self.sio.emit("message", data={"content": "Не указан ID комнаты или комната не существует!"})
 
         @self.sio.on("leave_room")
         def leave_room(sid):
