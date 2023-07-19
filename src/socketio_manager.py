@@ -132,7 +132,6 @@ class SocketIOManager:
 
         @self.sio.event(namespace="/api/rooms")
         def get_list_rooms(sid, data):
-            # self.sio.connect("https://localhost:8000/api/rooms")
 
             for room in self.rooms_dict.values():
                 self.sio.emit("message", {"name_room": room.name,
