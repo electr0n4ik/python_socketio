@@ -14,7 +14,6 @@ class SocketIOManager:
             "/": "./public/"
         })
 
-        self.clients_count = 1
         self.rooms_dict = {}
         self.room = None
         self.users_dict = {}
@@ -28,20 +27,23 @@ class SocketIOManager:
 
             user = User(sid)
             self.users_dict[sid] = user
-            self.clients_count += 1
 
             self.sio.emit("connect", user.id, to=sid)
 
         @self.sio.event
         def disconnect(sid):
             user = self.users_dict.get(sid)
+            print(1)
             if user:
                 user.is_online = False
+                print(2)
                 if user.room:
-                    self.leave_room(sid)
-                del self.users_dict[sid]
+                    # self.sio.leave_room(sid)
+                    print(3)
 
-                self.clients_count -= 1
+            del self.users_dict[sid]
+
+            self.sio.emit("disconnect", user.id)
 
         @self.sio.on("create_room")
         def create_room(sid, environ):
@@ -92,7 +94,7 @@ class SocketIOManager:
                     return None
 
                 user_leave.room = None
-                room.members.remove(user_leave)
+                del room.members[user_leave]
                 self.sio.emit("user_left", {"room_id": room.id, "user_id": user_leave.id}, room=room.id)
             else:
 
