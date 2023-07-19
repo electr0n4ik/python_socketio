@@ -50,7 +50,7 @@ class SocketIOManager:
 
             self.room = Room()  # создаем новую комнату
             self.room.host = user.session_id  # назначаем хост комнате
-            self.rooms_dict[self.room.id] = self.room.host  # добавляем комнату в словарь комнат
+            self.rooms_dict[self.room.id] = self.room  # добавляем комнату в словарь комнат
             user.room = self.room.host  # сохраняем хост комнаты у пользователя
 
             self.room.increase_id_counter()  # счетчик класса комнат увеличиваем на 1 после создания очередной комнаты
@@ -64,13 +64,19 @@ class SocketIOManager:
 
                 if data.get("room_id") == str(key):
 
-                    user = self.users_dict.get(sid)
+                    user_join = self.users_dict.get(sid)
 
-                    room = self.rooms_dict.get(key)
-                    user.room = room
+                    room_join = self.rooms_dict.get(key)
+                    user_join.room = room_join
 
-                    # room.members[user.session_id] = user  # TODO исправить
-                    self.sio.emit("message", {"room_id": room, "user_id": user.id}, room=room)
+                    room_join.members[user_join.session_id] = user_join
+                    print("joined")
+                    self.sio.emit("join_room",
+                                  {"room_id": room_join.host, "user_id": sid},
+                                  room=room_join.host)
+                    self.sio.emit("join_room",
+                                  "Hello!",  # приветствие пользователя при его подключении к комнате
+                                  to=sid)
 
                 else:
                     self.sio.emit("message", data={"content": "Не указан ID комнаты или комната не существует!"})

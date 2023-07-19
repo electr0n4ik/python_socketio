@@ -9,7 +9,7 @@ class Room:
     мемберы (клиенты которые к ней подключились).
     """
     id_counter = 1
-    host = {}
+    host = None
     members = {}
 
     def __init__(self):
