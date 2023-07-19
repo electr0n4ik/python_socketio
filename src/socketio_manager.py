@@ -7,90 +7,101 @@ from src.user import User
 
 class SocketIOManager:
     """Класс отвечает за управление розеткой"""
+
     def __init__(self):
         self.sio = socketio.Server()
         self.app = socketio.WSGIApp(self.sio, static_files={
             "/": "./public/"
         })
 
-        self.clients_count = 0
-        self.a_count = 0
-        self.b_count = 0
-
-        self.rooms = {}
-        self.users = {}
+        self.clients_count = 1
+        self.rooms_dict = {}
+        self.room = None
+        self.users_dict = {}
 
         self.register_events()
 
     def register_events(self):
 
-        @self.sio.on('*')
-        def catch_all(event, sid, data):
-            """Для не обработанных событий событий"""
-            print(self.sio.emit())
-
         @self.sio.event
         def connect(sid, environ):
-            self.users[sid] = User(sid, sid)
-            self.sio.emit("user_data", self.get_user_data(sid), to=sid)
+
+            user = User(sid)
+            self.users_dict[sid] = user
+            self.clients_count += 1
+
+            self.sio.emit("connect", user.id, to=sid)
 
         @self.sio.event
         def disconnect(sid):
-            user = self.users.get(sid)
+            user = self.users_dict.get(sid)
             if user:
                 user.is_online = False
                 if user.room:
                     self.leave_room(sid)
-                del self.users[sid]
+                del self.users_dict[sid]
 
-        # @self.sio.on("message")
-        # def in_com(sid, data):
-        #     """{
-        #       "event": "message",
-        #       "data": "Hello, server!"
-        #     }"""
-        #     print(data)
+                self.clients_count -= 1
 
         @self.sio.on("create_room")
-        def create_room(sid):
-            print("Ok")
-            user = self.users.get(sid)
-            if user:
-                room = Room(user)
-                self.rooms[room.id] = room
-                user.room = room
-                self.sio.emit("create_room", {"room_id": room.id, "room_name": room.name}, to=sid)
+        def create_room(sid, environ):
+
+            user = self.users_dict.get(sid)
+
+            self.room = Room()  # создаем новую комнату
+            self.room.host = user.session_id  # назначаем хост комнате
+            self.rooms_dict[self.room.id] = self.room  # добавляем комнату в словарь комнат
+            user.room = self.room.host  # сохраняем хост комнаты у пользователя
+
+            self.room.increase_id_counter()  # счетчик класса комнат увеличиваем на 1 после создания очередной комнаты
+
+            self.sio.emit("create_room", {"room_id": self.room.id, "room_name": self.room.name}, to=sid)
 
         @self.sio.on("join_room")
-        def join_room(sid, room_id):
-            user = self.users.get(sid)
-            if user:
-                room = self.rooms.get(room_id)
-                if room:
-                    user.room = room
-                    room.members["user"] = user
-                    self.sio.emit("user_joined", {"room_id": room.id, "user_id": user.id}, room=room.id)
+        def join_room(sid, data):
+
+            for key in self.rooms_dict.keys():
+
+                if data.get("room_id") == str(key):
+
+                    user_join = self.users_dict.get(sid)
+
+                    room_join = self.rooms_dict.get(key)
+                    user_join.room = room_join
+                    room_join.members[user_join.session_id] = user_join
+
+                    self.sio.emit("join_room",
+                                  {"room_id": room_join.host, "user_id": sid},
+                                  room=room_join.host)
+                    self.sio.emit("join_room",
+                                  "Hello!",  # приветствие пользователя при его подключении к комнате
+                                  to=sid)
+
+                else:
+                    self.sio.emit("message", data={"content": "Не указан ID комнаты или комната не существует!"})
 
         @self.sio.on("leave_room")
-        def leave_room(sid):
-            user = self.users.get(sid)
-            if user and user.room:
-                room = user.room
-                user.room = None
-                room.members.remove(user)
-                self.sio.emit("user_left", {"room_id": room.id, "user_id": user.id}, room=room.id)
+        def leave_room(sid, environ):
+            user_leave = self.users_dict.get(sid)
 
-        @self.sio.event(namespace='/chat')
-        def my_custom_event():
-            print("Ку")
+            if user_leave and user_leave.room:
+                room = user_leave.room
 
-        # @self.sio.on('connect', namespace='/chat')
-        # def on_connect():
-        #     print("I'm connected to the /chat namespace!")
+                if user_leave.room == room:
+                    self.sio.emit("message", "host не может покинуть комнату", room=room)
+                    return None
+
+                user_leave.room = None
+                room.members.remove(user_leave)
+                self.sio.emit("user_left", {"room_id": room.id, "user_id": user_leave.id}, room=room.id)
+            else:
+
+                self.sio.emit("message", "Вы не в комнате!", to=sid)
 
     def get_user_data(self, sid):
-        user = self.users.get(sid)
-        if user:
+
+        if self.users_dict.get(sid):
+            user = self.users_dict.get(sid)
             return {
                 "id": user.id,
                 "name": user.name,
@@ -101,7 +112,6 @@ class SocketIOManager:
 
     def run(self, host, port):
         eventlet.wsgi.server(eventlet.listen((host, port)), self.app)
-
 
 # socket_data = {"online": 0, "message": 0}
 #

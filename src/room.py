@@ -9,11 +9,18 @@ class Room:
     мемберы (клиенты которые к ней подключились).
     """
     id_counter = 1
-    members = {"default": "anonim"}
+    host = None
+    members = {}
 
-    def __init__(self, host):
+    def __init__(self):
         self.id = self.id_counter
         self.id_counter += 1
         self.name = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
-        self.host = host
-        self.members = self.members
+
+    def add_host(self, host):
+        self.host[self.name] = host
+
+    @classmethod
+    def increase_id_counter(cls):
+        cls.id_counter += 1
+        return cls.id_counter
