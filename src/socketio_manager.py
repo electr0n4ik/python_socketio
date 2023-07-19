@@ -111,21 +111,41 @@ class SocketIOManager:
 
                 self.sio.emit("message", "Вы не в комнате!", to=sid)
 
-        # @self.sio.on("add_client_to_room")
-        # def add_client_to_room(sid, data, environ):
-        #     room = self.rooms_dict.get(data.get("room_id"))
-        #
-        #     user_id = data.get("user_id")
-        #
-        #     for key in self.rooms_dict.keys():
-        #         if data.get("room_id") == str(key):
-        #
-        #             self.join_room(sid, data)
-        #
-        #             self.sio.emit("user_connect_room", {"room_id": room.id,
-        #                                                 "room_name": room.name,
-        #                                                 "host": room.host,
-        #                                                 "members": room.members}, room=room.id)
+        @self.sio.event
+        def message_room(sid, data):
+
+            """ При получении от хоста события message_room происходит рассылка сообщения всем мемберам в комнате.
+            data = {"message_room": "message"}"""
+            user_host = self.users_dict[sid]
+            message_host = data.get("message")
+            room_id = data.get("room_id")
+
+            if user_host.is_host:
+                for key in self.rooms_dict.keys():
+                    if room_id == str(key):
+                        self.room_message = self.rooms_dict.get(key)
+
+                        for user in self.room_message.members.keys():
+                            # self.sio.emit("message", {"message": message_host}, room=self.room_message.host)
+                            self.sio.emit("message", {"message": message_host}, to=user)
+            else:
+                self.sio.emit("message", {"message": message_host}, to=user)
+
+    # @self.sio.on("add_client_to_room")
+    # def add_client_to_room(sid, data, environ):
+    #     room = self.rooms_dict.get(data.get("room_id"))
+    #
+    #     user_id = data.get("user_id")
+    #
+    #     for key in self.rooms_dict.keys():
+    #         if data.get("room_id") == str(key):
+    #
+    #             self.join_room(sid, data)
+    #
+    #             self.sio.emit("user_connect_room", {"room_id": room.id,
+    #                                                 "room_name": room.name,
+    #                                                 "host": room.host,
+    #                                                 "members": room.members}, room=room.id)
 
     def run(self, host, port):
         eventlet.wsgi.server(eventlet.listen((host, port)), self.app)
