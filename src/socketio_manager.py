@@ -98,17 +98,10 @@ class SocketIOManager:
 
                 self.sio.emit("message", "Вы не в комнате!", to=sid)
 
-        @self.sio.event(namespace='/chat')
-        def my_custom_event():
-            print("Ку")
-
-        # @self.sio.on('connect', namespace='/chat')
-        # def on_connect():
-        #     print("I'm connected to the /chat namespace!")
-
     def get_user_data(self, sid):
-        user = self.users.get(sid)
-        if user:
+
+        if self.users_dict.get(sid):
+            user = self.users_dict.get(sid)
             return {
                 "id": user.id,
                 "name": user.name,
