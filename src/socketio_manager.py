@@ -4,21 +4,31 @@ import eventlet
 from src.room import Room
 from src.user import User
 
+from flask import Flask
+import json
+
 
 class SocketIOManager:
     """Класс отвечает за управление розеткой"""
+    app_flask = Flask(__name__)
+    rooms_dict = {}
+    users_dict = {}
 
     def __init__(self):
         self.sio = socketio.Server()
-        self.app = socketio.WSGIApp(self.sio, static_files={
-            "/": "./public/"
-        })
 
-        self.rooms_dict = {}
         self.room = None
-        self.users_dict = {}
-
         self.register_events()
+
+    @staticmethod
+    @app_flask.route("/api/room")
+    def handle_request():
+        dict_rooms = {}
+        for room in SocketIOManager.rooms_dict.values():
+            dict_rooms[room.name] = room.host
+
+        return f"<p>Комнаты {dict_rooms}</p>" \
+               f"<p>Количество подключенных пользователей - {len(SocketIOManager.users_dict)}</p>"
 
     def register_events(self):
 
@@ -130,8 +140,9 @@ class SocketIOManager:
             else:
                 self.sio.emit("message", "Только host может рассылать сообщения.", to=sid)
 
-        @self.sio.event(namespace="/api/rooms")
-        def get_list_rooms(sid, data):
+        @self.sio.event(namespace="/api/room")
+        def connect(sid, data):
+            self.app_flask.run("localhost", 5000)
 
             for room in self.rooms_dict.values():
                 self.sio.emit("message", {"name_room": room.name,
@@ -140,4 +151,5 @@ class SocketIOManager:
                 self.sio.emit("message", {"count_members": len(room.members)}, namespace="/api/rooms")
 
     def run(self, host, port):
-        eventlet.wsgi.server(eventlet.listen((host, port)), self.app)
+        app = socketio.Middleware(self.sio, self.app_flask)
+        eventlet.wsgi.server(eventlet.listen((host, port)), app)
