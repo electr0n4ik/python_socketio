@@ -41,6 +41,7 @@ class SocketIOManager:
             self.users_dict[sid] = user
             user_info = f"{user.get_info()}"  # добавил в f-строку, чтобы не выходила ошибка сериализации в json
             self.sio.emit("message", user_info, to=sid)
+            self.sio.emit("message", {user.name: "connected"})
 
         @self.sio.event
         def disconnect(sid):
@@ -59,6 +60,16 @@ class SocketIOManager:
                     del room.members[user.session_id]
 
             self.sio.emit("disconnect", user.id)
+
+        @self.sio.on("user/rename")
+        def user_rename(sid, data):
+            """Демоверсия, уникальность ников не проверяется"""
+            rename_user = self.users_dict.get(sid)
+            old_name = rename_user.name
+
+            new_nickname = data.get("nickname")
+            rename_user.name = new_nickname
+            self.sio.emit("message", f"'{old_name}' renamed to '{rename_user.name}'")
 
         @self.sio.on("room/host")
         def create_room(sid, data):
@@ -180,6 +191,18 @@ class SocketIOManager:
             self.sio.enter_room(sid, room.host)
 
             self.sio.emit("message", to=sid, data={"message": "you are reconnected"})
+
+        @self.sio.on("message/user")
+        def send_message_user(sid, data):
+            """ Можно переписываться, демоверсия.
+            data = {"nickname": "nickname", "message": "message"}"""
+            user_sender = self.users_dict[sid]
+            user_receiver = data.get("nickname")
+
+            if user_sender and user_receiver:
+                self.sio.emit("message", {"message": data.get("message")}, to=self.users_dict.get(user_receiver))
+            else:
+                self.sio.emit("message", "Только host может разослать сообщения в комнате", to=sid)
 
     def run(self, host, port):
         app = socketio.Middleware(self.sio, self.app_flask)
