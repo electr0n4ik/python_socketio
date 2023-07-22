@@ -160,25 +160,16 @@ class SocketIOManager:
                 self.sio.emit("message", "Вы не в комнате!"
                                          "Без паники, мы не на Титанике!", to=sid)
 
-        @self.sio.event
-        def message_room(sid, data):
-
+        @self.sio.on("room/send_message")
+        def host_message_room(sid, data):
             """ При получении от хоста события message_room происходит рассылка сообщения всем мемберам в комнате.
-            data = {"message_room": "message"}"""
+            data = {"message": "message"}"""
             user_host = self.users_dict[sid]
-            message_host = data.get("message")
-            room_id = data.get("room_id")
 
             if user_host.is_host:
-                for key in self.rooms_dict.keys():
-                    if room_id == str(key):
-                        self.room_message = self.rooms_dict.get(key)
-
-                        for user in self.room_message.members.keys():
-                            # self.sio.emit("message", {"message": message_host}, room=self.room_message.host)
-                            self.sio.emit("message", {"message": message_host}, to=user)
+                self.sio.emit("message", {"message": data.get("message")}, to=sid)
             else:
-                self.sio.emit("message", "Только host может рассылать сообщения.", to=sid)
+                self.sio.emit("message", "Только host может разослать сообщения в комнате", to=sid)
 
         @self.sio.event(namespace="/api/room")
         def connect(sid, data):

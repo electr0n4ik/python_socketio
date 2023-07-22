@@ -1,29 +1,3 @@
-# [ ] Данные хранятся в словаре
-# [ ] Пользователь может получить свои данные
-# [ ] Пользователь может поменять свои данные
-# [ ] Пользователь может отключиться, переподключиться и иметь доступ к своим данным
-#
-# Бонус
-#
-# [ ] При подлючении и отключении статус пользователя обновляется (online / offline)
-
-import eventlet
-import socketio
-
-sio = socketio.Server()
-app = socketio.WSGIApp(sio)
-
-user_storage = {}  # ключ - pk пользователя , значение - словарь c ключами user_pk, name, status, sid
-
-
-def get_next_pk(storage):
-    return len(storage.keys()) + 1
-
-
-@sio.event
-def connect(sid, data):
-    pass
-
 
 @sio.on("user/join")
 def user_join(sid, data): # {name: , status:}
@@ -55,7 +29,7 @@ def get_profile(sid, data):
 
 
 @sio.on("user/reconnect")
-def get_profile(sid, data):
+def reconnect_profile(sid, data):
 
     user_pk = data.get("user_pk")
 
