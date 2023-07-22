@@ -160,7 +160,7 @@ class SocketIOManager:
                 self.sio.emit("message", "Вы не в комнате!"
                                          "Без паники, мы не на Титанике!", to=sid)
 
-        @self.sio.on("room/send_message")
+        @self.sio.on("message/room")
         def host_message_room(sid, data):
             """ При получении от хоста события message_room происходит рассылка сообщения всем мемберам в комнате.
             data = {"message": "message"}"""
@@ -170,16 +170,6 @@ class SocketIOManager:
                 self.sio.emit("message", {"message": data.get("message")}, to=sid)
             else:
                 self.sio.emit("message", "Только host может разослать сообщения в комнате", to=sid)
-
-        @self.sio.event(namespace="/api/room")
-        def connect(sid, data):
-            self.app_flask.run("localhost", 5000)
-
-            for room in self.rooms_dict.values():
-                self.sio.emit("message", {"name_room": room.name,
-                                          "host_room": room.host}, namespace="/api/rooms")
-
-                self.sio.emit("message", {"count_members": len(room.members)}, namespace="/api/rooms")
 
     def run(self, host, port):
         app = socketio.Middleware(self.sio, self.app_flask)
