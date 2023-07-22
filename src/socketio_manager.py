@@ -125,7 +125,7 @@ class SocketIOManager:
                     self.sio.emit("message", data={"room_id": room_join.id,
                                                    "room_name": room_join.name,
                                                    "host": room_join.host,
-                                                   "members": room_join.members}, room=room_join.host)
+                                                   "members": room_join.members}, to=sid)
                     return None
 
                 else:
@@ -150,11 +150,15 @@ class SocketIOManager:
                     return None
 
                 user_leave.room = None
-                del room.members[user_leave]
-                self.sio.emit("user_left", {"room_id": room.id, "user_id": user_leave.id}, room=room.id)
-            else:
 
-                self.sio.emit("message", "Вы не в комнате!", to=sid)
+                del room.members[user_leave.session_id]
+
+                self.sio.leave_room(sid, self.room.host)
+
+                self.sio.emit("message", {"room_id": room.id, "user_id_left": user_leave.id}, to=room.host)
+            else:
+                self.sio.emit("message", "Вы не в комнате!"
+                                         "Без паники, мы не на Титанике!", to=sid)
 
         @self.sio.event
         def message_room(sid, data):
