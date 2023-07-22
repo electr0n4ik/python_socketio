@@ -173,7 +173,7 @@ class SocketIOManager:
 
         @self.sio.on("message/room")
         def host_message_room(sid, data):
-            """ При получении от хоста события message_room происходит рассылка сообщения всем мемберам в комнате.
+            """ При получении от хоста события message происходит рассылка сообщения всем мемберам в комнате.
             data = {"message": "message"}"""
             user_host = self.users_dict[sid]
 
@@ -197,12 +197,14 @@ class SocketIOManager:
             """ Можно переписываться, демоверсия.
             data = {"nickname": "nickname", "message": "message"}"""
             user_sender = self.users_dict[sid]
-            user_receiver = data.get("nickname")
 
-            if user_sender and user_receiver:
-                self.sio.emit("message", {"message": data.get("message")}, to=self.users_dict.get(user_receiver))
-            else:
-                self.sio.emit("message", "Только host может разослать сообщения в комнате", to=sid)
+            for key in self.users_dict.values():
+
+                if key.name == data.get("nickname"):
+                    self.sio.emit("message", {user_sender.name: data.get("message")}, to=key.session_id)
+                    return None
+                else:
+                    self.sio.emit("message", "Сообщение не доставлено!", to=sid)
 
     def run(self, host, port):
         app = socketio.Middleware(self.sio, self.app_flask)
