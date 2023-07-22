@@ -16,7 +16,6 @@ class SocketIOManager:
 
     def __init__(self):
         self.sio = socketio.Server()
-
         self.room = None
         self.register_events()
 
@@ -33,13 +32,15 @@ class SocketIOManager:
     def register_events(self):
 
         @self.sio.event
-        def connect(sid, environ):
-
+        def connect(sid, data, environ):
+            """После подключения юзера, создаем экземпляр юзера,
+            добавляем его в словарь юзеров,
+            получаем информацию о юзере методом класса юзера,
+            отправляем сообщение юзеру о нем"""
             user = User(sid)
             self.users_dict[sid] = user
-
-            self.sio.emit("connect", user.id, to=sid)
-            return "OK"
+            user_info = f"{user.get_info()}"
+            self.sio.emit("message", user_info, to=sid)
 
         @self.sio.event
         def disconnect(sid):
