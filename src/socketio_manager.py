@@ -64,14 +64,21 @@ class SocketIOManager:
         def create_room(sid, data):
             """При получении от клиента события room/host создание на сервере экземпляра “комнаты”
             с добавлением туда клиента-host, клиенту при этом вернутся данные комнаты:
-            id, room_name, host, members в формате json."""
+            id, room_name, host, members в формате json.
+
+            От себя решил добавить настройку при создании комнаты:
+            Это указывать максимальное количество участников
+            Полезная фича ИМХО"""
 
             user = self.users_dict.get(sid)
+
+            # в будущем кнч необходимо прописать обработку приема ТОЛЬКО целых чисел или что-нибудь подобное
+            quantity_users = int(data.get("max_quantity"))
 
             if not user.is_host:
 
                 user.is_host = True
-                self.room = Room()  # создаем новую комнату
+                self.room = Room(quantity_users)  # создаем новую комнату
                 self.room.host = user.session_id  # назначаем хост комнате
                 self.rooms_dict[self.room.id] = self.room  # добавляем комнату в словарь комнат
                 user.room = self.room.host  # сохраняем хост комнаты у пользователя
@@ -86,6 +93,7 @@ class SocketIOManager:
                 self.sio.emit("message", {"room_id": self.room.id,
                                           "room_name": self.room.name,
                                           "host": self.room.host,
+                                          "max_quantity_users": self.room.max_quantity,
                                           # в будущем можно добавить фичу, при которой,
                                           # хост сможет сам добавлять юзеров в комнату
                                           "members": self.room.members}, to=sid)
@@ -100,38 +108,45 @@ class SocketIOManager:
             for key in self.rooms_dict.keys():
 
                 if data.get("room_id") == str(key):
+                    """полученный id присутствует в словаре комнат?"""
 
                     user_join = self.users_dict.get(sid)
                     room_join = self.rooms_dict.get(key)
+
+                    if room_join.max_quantity == len(room_join.members):
+                        self.sio.emit("message", data={"content": "В комнате нет свободных мест!"})
+                        return None
 
                     user_join.room = room_join
                     room_join.members[user_join.session_id] = user_join.name
 
                     self.sio.enter_room(sid, room_join.host)
 
-                    self.sio.emit("message", {"room_id": room_join.id,
-                                              "room_name": room_join.name,
-                                              "host": room_join.host,
-                                              "members": room_join.members}, room=room_join.host)
+                    self.sio.emit("message", data={"room_id": room_join.id,
+                                                   "room_name": room_join.name,
+                                                   "host": room_join.host,
+                                                   "members": room_join.members}, room=room_join.host)
                     return None
 
                 else:
-                    self.sio.emit("message", data={"content": "Не указан ID комнаты или комната не существует!"})
+                    self.sio.emit("message", data={"content": "Не указан ID комнаты!"
+                                                              "Обратитесь в тех. поддержку!"})
                     return None
+            self.sio.emit("message", data={"content": "Комната не найдена!"
+                                                      "Обратитесь в тех. поддержку!"})
 
-            self.sio.emit("message", data={"content": "Комната не существует! Обратитесь в тех. поддержку!"})
-
-        @self.sio.event
+        @self.sio.on("room/leave")
         def leave_room(sid, data):
-            """ При получении от клиента события leave_room покидание комнаты.
-            При этом хост не может покинуть комнату. Такая вот у него грустная жизнь."""
+            """ При получении от клиента события room/leave юзер покидает комнату"""
             user_leave = self.users_dict.get(sid)
 
             if user_leave and user_leave.room:
+                # юзер существует? юзер в комнате?
                 room = user_leave.room
 
-                if user_leave.room == room:
-                    self.sio.emit("message", "host не может покинуть комнату", room=room)
+                if user_leave.is_host:
+                    # юзер, который выходит, host?
+                    self.sio.emit("message", "host не может покинуть комнату", to=sid)
                     return None
 
                 user_leave.room = None

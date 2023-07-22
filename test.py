@@ -65,21 +65,6 @@ def get_profile(sid, data):
     sio.emit("message", to=sid, data={"message": "you are reconnected"})
 
 
-eventlet.wsgi.server(
-    eventlet.listen(('', 5000)), app
-)
-
-# @sio.on("rooms/join")
-# def join_room(sid, data):
-#     room_name = data.get("room_name")
-#     if room_name:
-#         sio.enter_room(sid, room_name)
-#         sio.save_session(sid, {"room_name": room_name})
-#         sio.emit("message", to=sid, data={"content": "you joined the room"})
-#         print(sid, "joined room", room_name)
-#     else:
-#         sio.emit("message", to=sid, data={"content": "select a room to join"})
-#
 #
 # @sio.on("rooms/send")
 # def sent_to_room(sid, data):
@@ -96,8 +81,3 @@ eventlet.wsgi.server(
 # def get_rooms(sid, data):
 #     my_rooms = sio.rooms(sid=sid)
 #     sio.emit("message", to=sid, data={"my_rooms": my_rooms, "sid": sid})
-#
-#
-# eventlet.wsgi.server(
-#     eventlet.listen(('', 5000)), app
-# )

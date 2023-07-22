@@ -7,12 +7,15 @@ class Room:
     id выдаются комнатам по возрастанию,
     host (пользователь, который комнату создал) и
     members (клиенты, которые к ней подключились).
+
+    max_quantity - макс. количество участников в комнате.
     """
     id_counter = 1
     host = None
     members = {}
 
-    def __init__(self):
+    def __init__(self, max_quantity):
+        self.max_quantity = max_quantity
         self.id = self.id_counter
         self.id_counter += 1
         self.name = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
