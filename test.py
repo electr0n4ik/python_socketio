@@ -69,18 +69,6 @@ eventlet.wsgi.server(
     eventlet.listen(('', 5000)), app
 )
 
-
-
-# import eventlet
-# import socketio
-#
-# sio = socketio.Server()
-# app = socketio.WSGIApp(sio)
-#
-# users_dict = {}
-# rooms_name = {}
-#
-#
 # @sio.event
 # def connect(sid, data):
 #     my_rooms = sio.rooms(sid=sid)
@@ -90,7 +78,6 @@ eventlet.wsgi.server(
 #
 # @sio.on("rooms/create")
 # def create_room(sid, data):
-#     create_room_name = data.get("create_room_name")
 #     if create_room_name:
 #         sio.enter_room(sid, create_room_name)
 #         sio.save_session(sid, {"create_room_name": create_room_name})

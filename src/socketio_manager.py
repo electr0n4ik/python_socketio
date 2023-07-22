@@ -5,7 +5,6 @@ from src.room import Room
 from src.user import User
 
 from flask import Flask
-import json
 
 
 class SocketIOManager:
@@ -32,18 +31,23 @@ class SocketIOManager:
     def register_events(self):
 
         @self.sio.event
-        def connect(sid, data, environ):
+        def connect(sid, data):
             """После подключения юзера, создаем экземпляр юзера,
             добавляем его в словарь юзеров,
             получаем информацию о юзере методом класса юзера,
             отправляем сообщение юзеру о нем"""
             user = User(sid)
             self.users_dict[sid] = user
-            user_info = f"{user.get_info()}"
+            user_info = f"{user.get_info()}"  # добавил в f-строку, чтобы не выходила ошибка сериализации в json
             self.sio.emit("message", user_info, to=sid)
 
         @self.sio.event
         def disconnect(sid):
+            """После отключения юзера получаем экземпляр юзера из словаря юзеров,
+            меняем статус юзера в его экземпляре,
+            вызываем метод выхода юзера из комнаты,
+            удаляем юзера из словаря присутствующих в комнате,
+            """
             user = self.users_dict.get(sid)
             if user:
                 user.is_online = False
@@ -55,25 +59,36 @@ class SocketIOManager:
 
             self.sio.emit("disconnect", user.id)
 
-        @self.sio.event
-        def create_room(sid, environ):
-            """При получении от клиента события create_room создание на сервере экземпляра “комнаты”
-            с добавлением туда клиента-host.
-            Клиенту при этом вернутся данные комнаты: id, название, хост, мемберы в формате json."""
+        @self.sio.on("room/host")
+        def create_room(sid, data):
+            """При получении от клиента события room/host {room_name: … } создание на сервере экземпляра “комнаты”
+            с добавлением туда клиента-host, клиенту при этом вернутся данные комнаты:
+            id, room_name, host, members в формате json."""
 
             user = self.users_dict.get(sid)
-            user.is_host = True
-            self.room = Room()  # создаем новую комнату
-            self.room.host = user.session_id  # назначаем хост комнате
-            self.rooms_dict[self.room.id] = self.room  # добавляем комнату в словарь комнат
-            user.room = self.room.host  # сохраняем хост комнаты у пользователя
 
-            self.room.increase_id_counter()  # счетчик класса комнат увеличиваем на 1 после создания очередной комнаты
+            if not user.is_host:
 
-            self.sio.emit("create_room", {"room_id": self.room.id,
+                user.is_host = True
+                self.room = Room()  # создаем новую комнату
+                self.room.host = user.session_id  # назначаем хост комнате
+                self.rooms_dict[self.room.id] = self.room  # добавляем комнату в словарь комнат
+                user.room = self.room.host  # сохраняем хост комнаты у пользователя
+
+                # Когда подключается юзер к серверу, для него автоматически создается комната
+                # поэтому sid-создателя-комнаты и host комнаты будут одинаковыми.
+                # Значит комнату без юзеров не создать ИМХО
+                self.sio.enter_room(sid, self.room.host)
+
+                self.room.increase_id_counter()  # счетчик комнат увеличиваем на 1 после создания очередной комнаты
+
+                self.sio.emit("message", {"room_id": self.room.id,
                                           "room_name": self.room.name,
                                           "host": self.room.host,
                                           "members": self.room.members}, to=sid)
+
+            else:
+                self.sio.emit("message", "One user - one create room!", to=sid)
 
         @self.sio.event
         def join_room(sid, data):
