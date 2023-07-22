@@ -12,6 +12,7 @@ class SocketIOManager:
     app_flask = Flask(__name__)
     rooms_dict = {}
     users_dict = {}
+    users_disconnect = {}
 
     def __init__(self):
         self.sio = socketio.Server()
@@ -50,13 +51,12 @@ class SocketIOManager:
             """
             user = self.users_dict.get(sid)
             if user:
+                self.users_disconnect[user.name] = user
                 user.is_online = False
                 if user.room:
-                    # SocketIOManager.register_events(leave_room(sid))
                     self.sio.leave_room(sid, user.room)
                     room = user.room
                     del room.members[user.session_id]
-            del self.users_dict[sid]
 
             self.sio.emit("disconnect", user.id)
 
@@ -79,9 +79,9 @@ class SocketIOManager:
 
                 user.is_host = True
                 self.room = Room(quantity_users)  # создаем новую комнату
-                self.room.host = user.session_id  # назначаем хост комнате
+                self.room.host = sid  # назначаем хост комнате
                 self.rooms_dict[self.room.id] = self.room  # добавляем комнату в словарь комнат
-                user.room = self.room.host  # сохраняем хост комнаты у пользователя
+                user.room = self.room  # сохраняем хост комнаты у пользователя
 
                 # Когда подключается юзер к серверу, для него автоматически создается комната
                 # поэтому sid-создателя-комнаты и host комнаты будут одинаковыми.
@@ -170,6 +170,16 @@ class SocketIOManager:
                 self.sio.emit("message", {"message": data.get("message")}, to=sid)
             else:
                 self.sio.emit("message", "Только host может разослать сообщения в комнате", to=sid)
+
+        @self.sio.on("user/reconnect")
+        def reconnect_profile(sid, data):
+
+            user_reconnect = self.users_disconnect.get(data.get("nickname"))
+            user_reconnect.session_id = sid
+            room = user_reconnect.room
+            self.sio.enter_room(sid, room.host)
+
+            self.sio.emit("message", to=sid, data={"message": "you are reconnected"})
 
     def run(self, host, port):
         app = socketio.Middleware(self.sio, self.app_flask)

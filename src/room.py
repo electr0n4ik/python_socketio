@@ -14,7 +14,7 @@ class Room:
     host = None
     members = {}
 
-    def __init__(self, max_quantity):
+    def __init__(self, max_quantity=2):
         self.max_quantity = max_quantity
         self.id = self.id_counter
         self.id_counter += 1
