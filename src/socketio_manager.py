@@ -52,7 +52,8 @@ class SocketIOManager:
             if user:
                 user.is_online = False
                 if user.room:
-                    self.sio.leave_room(sid)
+                    # SocketIOManager.register_events(leave_room(sid))
+                    self.sio.leave_room(sid, user.room)
                     room = user.room
                     del room.members[user.session_id]
             del self.users_dict[sid]
@@ -61,7 +62,7 @@ class SocketIOManager:
 
         @self.sio.on("room/host")
         def create_room(sid, data):
-            """При получении от клиента события room/host {room_name: … } создание на сервере экземпляра “комнаты”
+            """При получении от клиента события room/host создание на сервере экземпляра “комнаты”
             с добавлением туда клиента-host, клиенту при этом вернутся данные комнаты:
             id, room_name, host, members в формате json."""
 
@@ -85,39 +86,43 @@ class SocketIOManager:
                 self.sio.emit("message", {"room_id": self.room.id,
                                           "room_name": self.room.name,
                                           "host": self.room.host,
+                                          # в будущем можно добавить фичу, при которой,
+                                          # хост сможет сам добавлять юзеров в комнату
                                           "members": self.room.members}, to=sid)
 
             else:
                 self.sio.emit("message", "One user - one create room!", to=sid)
 
-        @self.sio.event
+        @self.sio.on("room/join")
         def join_room(sid, data):
-            """При получении от клиента события join_room присоединение к комнате.
-            Клиенту при этом вернутся данные комнаты: id, название, хост, мемберы в формате json. """
+            """При получении от клиента события room/join {room_id: … } присоединение к комнате,
+            клиенту при этом вернутся данные комнаты: id, name, host, members в формате json"""
             for key in self.rooms_dict.keys():
 
                 if data.get("room_id") == str(key):
 
                     user_join = self.users_dict.get(sid)
                     room_join = self.rooms_dict.get(key)
+
                     user_join.room = room_join
                     room_join.members[user_join.session_id] = user_join.name
 
-                    self.sio.emit("join_room", {"room_id": room_join.id,
-                                                "room_name": room_join.name,
-                                                "host": room_join.host,
-                                                "members": room_join.members}, to=sid)
+                    self.sio.enter_room(sid, room_join.host)
 
-                    self.sio.emit("join_room", {"room_id": room_join.id,
-                                                "room_name": room_join.name,
-                                                "host": room_join.host,
-                                                "members": room_join.members}, to=room_join.host)
+                    self.sio.emit("message", {"room_id": room_join.id,
+                                              "room_name": room_join.name,
+                                              "host": room_join.host,
+                                              "members": room_join.members}, room=room_join.host)
+                    return None
 
                 else:
                     self.sio.emit("message", data={"content": "Не указан ID комнаты или комната не существует!"})
+                    return None
+
+            self.sio.emit("message", data={"content": "Комната не существует! Обратитесь в тех. поддержку!"})
 
         @self.sio.event
-        def leave_room(sid, environ):
+        def leave_room(sid, data):
             """ При получении от клиента события leave_room покидание комнаты.
             При этом хост не может покинуть комнату. Такая вот у него грустная жизнь."""
             user_leave = self.users_dict.get(sid)

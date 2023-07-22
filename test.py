@@ -69,24 +69,6 @@ eventlet.wsgi.server(
     eventlet.listen(('', 5000)), app
 )
 
-# @sio.event
-# def connect(sid, data):
-#     my_rooms = sio.rooms(sid=sid)
-#     sio.emit("message", to=sid, data={"my_rooms": my_rooms, "sid": sid})
-#     print(sid, "connected")
-#
-#
-# @sio.on("rooms/create")
-# def create_room(sid, data):
-#     if create_room_name:
-#         sio.enter_room(sid, create_room_name)
-#         sio.save_session(sid, {"create_room_name": create_room_name})
-#         sio.emit("message", to=sid, data={"content": "you create the room"})
-#         print(sid, "created room", create_room_name)
-#     else:
-#         sio.emit("message", to=sid, data={"content": "select a room to join"})
-#
-#
 # @sio.on("rooms/join")
 # def join_room(sid, data):
 #     room_name = data.get("room_name")
