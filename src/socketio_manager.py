@@ -71,6 +71,16 @@ class SocketIOManager:
             rename_user.name = new_nickname
             self.sio.emit("message", f"'{old_name}' renamed to '{rename_user.name}'")
 
+        @self.sio.on("user/reconnect")
+        def reconnect_profile(sid, data):
+
+            user_reconnect = self.users_disconnect.get(data.get("nickname"))
+            user_reconnect.session_id = sid
+            room = user_reconnect.room
+            self.sio.enter_room(sid, room.host)
+
+            self.sio.emit("message", to=sid, data={"message": "you are reconnected"})
+
         @self.sio.on("room/host")
         def create_room(sid, data):
             """При получении от клиента события room/host создание на сервере экземпляра “комнаты”
@@ -181,16 +191,6 @@ class SocketIOManager:
                 self.sio.emit("message", {"message": data.get("message")}, to=sid)
             else:
                 self.sio.emit("message", "Только host может разослать сообщения в комнате", to=sid)
-
-        @self.sio.on("user/reconnect")
-        def reconnect_profile(sid, data):
-
-            user_reconnect = self.users_disconnect.get(data.get("nickname"))
-            user_reconnect.session_id = sid
-            room = user_reconnect.room
-            self.sio.enter_room(sid, room.host)
-
-            self.sio.emit("message", to=sid, data={"message": "you are reconnected"})
 
         @self.sio.on("message/user")
         def send_message_user(sid, data):
